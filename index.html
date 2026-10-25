@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>x402scan Ownership Signer — QuincyGB fleet</title>
+<style>
+  body { font-family: ui-monospace, Menlo, Consolas, monospace; background:#0b0f0c; color:#d7e0d8; margin:0; padding:24px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 20px; letter-spacing: .04em; }
+  p { line-height: 1.5; font-size: 14px; }
+  .warn { background:#2a1414; border:1px solid #7a2e2e; padding:10px 14px; border-radius:8px; }
+  .ok { color:#7ee2a0; } .bad { color:#ff9c9c; }
+  .card { border:1px solid #2c3a2e; border-radius:10px; padding:16px; margin:16px 0; background:#10160f; }
+  .origin { font-size:13px; word-break:break-all; color:#9fd3a8; }
+  button { background:#57d992; color:#0b0f0c; border:0; border-radius:8px; padding:10px 16px; font-weight:700; cursor:pointer; font-family:inherit; }
+  button:disabled { opacity:.4; cursor:default; }
+  textarea { width:100%; box-sizing:border-box; background:#0b0f0c; color:#d7e0d8; border:1px solid #2c3a2e; border-radius:8px; padding:10px; margin-top:10px; font-size:12px; }
+  .addr { font-size:13px; word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>x402scan OWNERSHIP SIGNER</h1>
+  <p>Each button asks MetaMask to <b>sign a message</b> (personal_sign) — the message is just the
+     service's web address, exactly as x402scan's verification code expects. This is <b>not</b> a
+     transaction: no gas, nothing moves, and the signature proves only that you control the
+     payout wallet for that address. The signatures are meant to be published.</p>
+  <p class="warn">Connect with the MetaMask account <b>0x097f9685D1e0752bF8B02d61E5Ce9be7eA0FBA7F</b>
+     (Account 1 — the fleet payout wallet). If a different account is connected, switch in MetaMask first.</p>
+  <p><button id="connect">Connect MetaMask</button></p>
+  <p class="addr">Connected: <span id="who">—</span></p>
+
+  <div class="card">
+    <div>1 · Token Verdict</div>
+    <div class="origin">https://token-verdict-production.up.railway.app</div>
+    <p><button class="sign" disabled data-origin="https://token-verdict-production.up.railway.app">Sign for Token Verdict</button></p>
+    <textarea rows="3" readonly placeholder="Signature appears here"></textarea>
+  </div>
+
+  <div class="card">
+    <div>2 · RouteVerdict</div>
+    <div class="origin">https://route-verdict-production.up.railway.app</div>
+    <p><button class="sign" disabled data-origin="https://route-verdict-production.up.railway.app">Sign for RouteVerdict</button></p>
+    <textarea rows="3" readonly placeholder="Signature appears here"></textarea>
+  </div>
+
+  <div class="card">
+    <div>3 · ListSmith</div>
+    <div class="origin">https://list-smith-production.up.railway.app</div>
+    <p><button class="sign" disabled data-origin="https://list-smith-production.up.railway.app">Sign for ListSmith</button></p>
+    <textarea rows="3" readonly placeholder="Signature appears here"></textarea>
+  </div>
+
+  <p>When all three boxes hold a signature starting with <b>0x</b>, copy each one and paste them
+     back to Ren, labeled by service. Done — Ren publishes them and triggers the verification.</p>
+</div>
+<script>
+  const EXPECTED = "0x097f9685d1e0752bf8b02d61e5ce9be7ea0fba7f";
+  let account = null;
+  const who = document.getElementById('who');
+  function refresh() {
+    if (!account) { who.textContent = "— (click Connect MetaMask first; Sign buttons unlock when the correct account is connected)"; document.querySelectorAll('.sign').forEach(b => b.disabled = true); return; }
+    const good = account.toLowerCase() === EXPECTED;
+    who.innerHTML = account + (good ? ' <span class="ok">(correct payout wallet)</span>'
+                                     : ' <span class="bad">(WRONG account — switch in MetaMask)</span>');
+    document.querySelectorAll('.sign').forEach(b => b.disabled = !good);
+  }
+  document.getElementById('connect').addEventListener('click', async () => {
+    if (!window.ethereum) { alert('MetaMask not found in this browser. Open this file in Chrome with MetaMask installed.'); return; }
+    const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    account = accs[0]; refresh();
+  });
+  if (window.ethereum) {
+    window.ethereum.on && window.ethereum.on('accountsChanged', a => { account = a[0] || null; refresh(); });
+  }
+  document.querySelectorAll('.sign').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const origin = btn.getAttribute('data-origin');
+      const box = btn.closest('.card').querySelector('textarea');
+      try {
+        if (!window.ethereum) { box.value = 'MetaMask is not reachable from this page yet. Enable "Allow access to file URLs" for MetaMask (chrome://extensions -> MetaMask -> Details), reload this page, then click Connect MetaMask first.'; return; }
+        if (!account) { box.value = 'Not connected yet — click Connect MetaMask at the top first.'; return; }
+        const sig = await window.ethereum.request({ method: 'personal_sign', params: [origin, account] });
+        box.value = sig;
+      } catch (e) { box.value = 'Signing failed or was rejected: ' + (e && e.message ? e.message : e); }
+    });
+  });
+  refresh();
+</script>
+</body>
+</html>
